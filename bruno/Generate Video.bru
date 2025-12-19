@@ -1,0 +1,22 @@
+meta {
+  name: Generate Video
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/generate-video
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "prompt": "Animate the person in the video to smile and wave" ,
+    "image": "image.png",
+    "negative_prompt": "blurry, low quality",
+    "fps": 24,
+    "resolution": "720p",
+    "frames": 140
+  }
+}

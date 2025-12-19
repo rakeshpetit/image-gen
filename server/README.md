@@ -70,7 +70,66 @@ The server will be running at `http://localhost:3000`.
 }
 ```
 
-### 2. Check Task Status
+### 2. Queue Image Edit
+
+**Endpoint**: `POST /edit`
+
+**Request Body**:
+
+```json
+{
+  "prompt": "Change the background to a sunset",
+  "images": ["input1.png"],
+  "width": 1024,
+  "height": 1024,
+  "num_inference_steps": 40,
+  "true_cfg_scale": 4,
+  "negative_prompt": ""
+}
+```
+
+*`prompt` and `images` (array of filenames in `inputs/`) are required.*
+
+**Response**:
+
+```json
+{
+  "id": "uuid-v4-string",
+  "status": "pending",
+  "message": "Edit task queued successfully"
+}
+```
+
+### 3. Queue Video Generation
+
+**Endpoint**: `POST /generate-video`
+
+**Request Body**:
+
+```json
+{
+  "prompt": "A cinematic video of a pug dog running in a park",
+  "image": "input_image.png",
+  "negative_prompt": "blurry, low quality",
+  "fps": 16,
+  "resolution": "1280*720",
+  "frames": 81
+}
+```
+
+*`prompt` and `image` (filename in `inputs/`) are required.*
+
+**Response**:
+
+```json
+{
+  "id": "uuid-v4-string",
+  "status": "pending",
+  "message": "Video generation task queued successfully"
+}
+```
+
+### 4. Check Task Status
 
 **Endpoint**: `GET /status/:id`
 
@@ -88,7 +147,7 @@ The server will be running at `http://localhost:3000`.
 }
 ```
 
-### 3. Get All Tasks / Filter by Status
+### 5. Get All Tasks / Filter by Status
 
 **Endpoint**: `GET /status`
 

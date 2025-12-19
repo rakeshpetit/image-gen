@@ -5,7 +5,7 @@ const path = require("path");
 const { updateTaskStatus } = require("./db");
 require("dotenv").config();
 
-const queue = new PQueue({ concurrency: 2 }); // Adjust concurrency as needed
+const queue = new PQueue({ concurrency: 10 }); // Adjust concurrency as needed
 const QUEUE_FILE = path.join(__dirname, "queue.txt");
 
 // Initialize queue file
@@ -34,7 +34,8 @@ function removeFromQueueFile(id) {
 
 async function processTask(task) {
   const { id, options } = task;
-  const outputPath = path.join(__dirname, "outputs", `${id}.png`);
+  const extension = options.type === "video" ? "mp4" : "png";
+  const outputPath = path.join(__dirname, "outputs", `${id}.${extension}`);
 
   try {
     updateTaskStatus(id, "processing");
@@ -62,6 +63,23 @@ async function processTask(task) {
         true_cfg_scale: options.true_cfg_scale,
         negative_prompt: options.negative_prompt,
         seed: options.seed || null,
+      };
+    } else if (options.type === "video") {
+      apiUrl = "https://chutes-wan-2-2-i2v-14b-fast.chutes.ai/generate";
+      const imagePath = path.join(__dirname, "inputs", options.image);
+      if (!fs.existsSync(imagePath)) {
+        throw new Error(`Input image not found: ${options.image}`);
+      }
+      const imageBuffer = fs.readFileSync(imagePath);
+      const imageB64 = imageBuffer.toString("base64");
+
+      requestData = {
+        prompt: options.prompt,
+        image: imageB64,
+        negative_prompt: options.negative_prompt || "",
+        fps: options.fps,
+        resolution: options.resolution,
+        frames: options.frames,
       };
     }
 
@@ -92,11 +110,22 @@ async function processTask(task) {
       });
     });
   } catch (error) {
-    const errorMessage = error.response
-      ? `API Error: ${error.response.status} - ${JSON.stringify(
-          error.response.data
-        )}`
-      : error.message;
+    let errorMessage = error.message;
+    if (error.response) {
+      errorMessage = `API Error: ${error.response.status}`;
+      // If it's a stream, we can't easily stringify it without consuming it
+      if (error.response.data && typeof error.response.data === "object") {
+        if (error.response.data.pipe) {
+          errorMessage += " - [Response Stream]";
+        } else {
+          try {
+            errorMessage += ` - ${JSON.stringify(error.response.data)}`;
+          } catch (e) {
+            errorMessage += " - [Circular/Complex Object]";
+          }
+        }
+      }
+    }
     updateTaskStatus(id, "failed", null, errorMessage);
     removeFromQueueFile(id);
     console.error(`Task ${id} failed:`, errorMessage);

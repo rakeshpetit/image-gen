@@ -86,6 +86,42 @@ app.post("/edit", (req, res) => {
   });
 });
 
+// Endpoint to trigger video generation
+app.post("/generate-video", (req, res) => {
+  const { prompt, image, negative_prompt, fps, resolution, frames } = req.body;
+
+  if (!prompt) {
+    return res.status(400).json({ error: "Prompt is required" });
+  }
+
+  if (!image) {
+    return res.status(400).json({ error: "Input image is required" });
+  }
+
+  const id = uuidv4();
+
+  // 1. Save to DB
+  createTask(id, prompt);
+
+  // 2. Add to Queue
+  addTaskToQueue(id, {
+    prompt,
+    image,
+    negative_prompt: negative_prompt || "",
+    fps: fps || 16,
+    resolution: resolution || "480p",
+    frames: frames || 81,
+    type: "video",
+  });
+
+  // 3. Return immediate response
+  res.status(202).json({
+    id,
+    status: "pending",
+    message: "Video generation task queued successfully",
+  });
+});
+
 // Endpoint to check status
 app.get("/status/:id", (req, res) => {
   const { id } = req.params;
