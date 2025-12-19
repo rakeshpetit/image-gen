@@ -1,0 +1,15 @@
+meta {
+  name: Check Status
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/status/:id
+  body: none
+  auth: none
+}
+
+params:path {
+  id: 
+}

@@ -1,0 +1,22 @@
+meta {
+  name: Generate Image
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/generate
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "prompt": "A detailed infographic of a coffee machine",
+    "model": "qwen-image",
+    "guidance_scale": 7.5,
+    "width": 1024,
+    "height": 1024,
+    "num_inference_steps": 8
+  }
+}
