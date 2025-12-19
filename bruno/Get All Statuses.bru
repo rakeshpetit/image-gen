@@ -5,11 +5,11 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/status
+  url: {{baseUrl}}/status?status=processing
   body: none
   auth: none
 }
 
 params:query {
-  ~status: pending
+  status: processing
 }

@@ -39,14 +39,40 @@ async function processTask(task) {
   try {
     updateTaskStatus(id, "processing");
 
+    let apiUrl = "https://image.chutes.ai/generate";
+    let requestData = { ...options };
+
+    if (options.type === "edit") {
+      apiUrl = "https://chutes-qwen-image-edit-2509.chutes.ai/generate";
+      const imageB64s = options.images.map((imageName) => {
+        const imagePath = path.join(__dirname, "inputs", imageName);
+        if (!fs.existsSync(imagePath)) {
+          throw new Error(`Input image not found: ${imageName}`);
+        }
+        const imageBuffer = fs.readFileSync(imagePath);
+        return imageBuffer.toString("base64");
+      });
+
+      requestData = {
+        prompt: options.prompt,
+        image_b64s: imageB64s,
+        width: options.width,
+        height: options.height,
+        num_inference_steps: options.num_inference_steps,
+        true_cfg_scale: options.true_cfg_scale,
+        negative_prompt: options.negative_prompt,
+        seed: options.seed || null,
+      };
+    }
+
     const response = await axios({
       method: "post",
-      url: "https://image.chutes.ai/generate",
+      url: apiUrl,
       headers: {
         Authorization: `Bearer ${process.env.CHUTES_API_TOKEN}`,
         "Content-Type": "application/json",
       },
-      data: options,
+      data: requestData,
       responseType: "stream",
     });
 

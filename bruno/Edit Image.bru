@@ -1,0 +1,23 @@
+meta {
+  name: Edit Image
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/edit
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "prompt": "A highly detailed and refined professional pencil portrait. Enhance the existing sketch with intricate graphite shading, sharp pencil lines, and realistic textures while preserving the original hand-drawn aesthetic. High contrast, fine cross-hatching, 8k resolution, masterpiece sketch style.",
+    "images": ["input_image.png"],
+    "width": 1024,
+    "height": 1024,
+    "num_inference_steps": 40,
+    "true_cfg_scale": 4,
+    "negative_prompt": ""
+  }
+}
