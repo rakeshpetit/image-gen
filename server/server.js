@@ -1,6 +1,6 @@
 const express = require("express");
 const { v4: uuidv4 } = require("uuid");
-const { createTask, getTask } = require("./db");
+const { createTask, getTask, getAllTasks } = require("./db");
 const { addTaskToQueue } = require("./queue");
 require("dotenv").config();
 
@@ -51,6 +51,13 @@ app.get("/status/:id", (req, res) => {
   }
 
   res.json(task);
+});
+
+// Endpoint to get all tasks
+app.get("/status", (req, res) => {
+  const { status } = req.query;
+  const tasks = getAllTasks(status);
+  res.json(tasks);
 });
 
 app.listen(PORT, () => {

@@ -36,8 +36,20 @@ function getTask(id) {
   return stmt.get(id);
 }
 
+function getAllTasks(status = null) {
+  if (status) {
+    const stmt = db.prepare(
+      "SELECT * FROM tasks WHERE status = ? ORDER BY created_at DESC"
+    );
+    return stmt.all(status);
+  }
+  const stmt = db.prepare("SELECT * FROM tasks ORDER BY created_at DESC");
+  return stmt.all();
+}
+
 module.exports = {
   createTask,
   updateTaskStatus,
   getTask,
+  getAllTasks,
 };

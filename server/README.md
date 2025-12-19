@@ -7,6 +7,7 @@ This is a Node.js proxy server for the Chutes AI image generation API. It uses a
 - **Asynchronous Processing**: Immediate response with a task ID.
 - **Queue Management**: Uses `p-queue` to manage concurrent requests.
 - **Persistence**: Uses SQLite to track task status and metadata.
+- **Queue Tracking**: Maintains a `queue.txt` file for easy monitoring of active task IDs.
 - **Streaming**: Streams image data directly to the file system to minimize memory usage.
 
 ## Prerequisites
@@ -86,6 +87,36 @@ The server will be running at `http://localhost:3000`.
   "updated_at": "2023-12-19 12:00:05"
 }
 ```
+
+### 3. Get All Tasks / Filter by Status
+
+**Endpoint**: `GET /status`
+
+**Query Parameters**:
+
+- `status` (optional): Filter tasks by status (`pending`, `processing`, `completed`, `failed`).
+
+**Example**: `GET /status?status=pending`
+
+**Response**:
+
+```json
+[
+  {
+    "id": "uuid-v4-string",
+    "prompt": "...",
+    "status": "pending",
+    "file_path": null,
+    "error": null,
+    "created_at": "2023-12-19 12:00:00",
+    "updated_at": "2023-12-19 12:00:00"
+  }
+]
+```
+
+## Queue Monitoring
+
+The server maintains a `queue.txt` file in the `server/` directory. This file contains the IDs of all tasks currently in the queue (either pending or processing). Once a task is completed or fails, its ID is removed from this file.
 
 ## Bruno API Client
 
