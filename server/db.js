@@ -47,9 +47,31 @@ function getAllTasks(status = null) {
   return stmt.all();
 }
 
+function cleanupStuckTasks(timeoutMinutes = 10) {
+  const selectStmt = db.prepare(`
+    SELECT id FROM tasks 
+    WHERE status = 'processing' 
+    AND datetime(updated_at) < datetime('now', '-' || ? || ' minutes')
+  `);
+  const stuckTasks = selectStmt.all(timeoutMinutes);
+  const ids = stuckTasks.map((t) => t.id);
+
+  if (ids.length > 0) {
+    const updateStmt = db.prepare(`
+      UPDATE tasks 
+      SET status = 'failed', error = 'Task timed out', updated_at = CURRENT_TIMESTAMP 
+      WHERE id IN (${ids.map(() => "?").join(",")})
+    `);
+    updateStmt.run(...ids);
+  }
+
+  return ids;
+}
+
 module.exports = {
   createTask,
   updateTaskStatus,
   getTask,
   getAllTasks,
+  cleanupStuckTasks,
 };

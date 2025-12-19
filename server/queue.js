@@ -83,6 +83,11 @@ async function processTask(task) {
       };
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, 10 * 60 * 1000); // 10 minute timeout
+
     const response = await axios({
       method: "post",
       url: apiUrl,
@@ -92,6 +97,7 @@ async function processTask(task) {
       },
       data: requestData,
       responseType: "stream",
+      signal: controller.signal,
     });
 
     const writer = fs.createWriteStream(outputPath);
@@ -99,11 +105,13 @@ async function processTask(task) {
 
     return new Promise((resolve, reject) => {
       writer.on("finish", () => {
+        clearTimeout(timeoutId);
         updateTaskStatus(id, "completed", outputPath);
         removeFromQueueFile(id);
         resolve();
       });
       writer.on("error", (err) => {
+        clearTimeout(timeoutId);
         updateTaskStatus(id, "failed", null, err.message);
         removeFromQueueFile(id);
         reject(err);
@@ -139,4 +147,5 @@ function addTaskToQueue(id, options) {
 
 module.exports = {
   addTaskToQueue,
+  removeFromQueueFile,
 };

@@ -1,0 +1,17 @@
+meta {
+  name: Cleanup
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/cleanup
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "timeoutMinutes": 10
+  }
+}

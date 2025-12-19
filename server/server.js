@@ -1,7 +1,7 @@
 const express = require("express");
 const { v4: uuidv4 } = require("uuid");
-const { createTask, getTask, getAllTasks } = require("./db");
-const { addTaskToQueue } = require("./queue");
+const { createTask, getTask, getAllTasks, cleanupStuckTasks } = require("./db");
+const { addTaskToQueue, removeFromQueueFile } = require("./queue");
 require("dotenv").config();
 
 const app = express();
@@ -140,6 +140,27 @@ app.get("/status", (req, res) => {
   const tasks = getAllTasks(status);
   res.json(tasks);
 });
+
+// Endpoint to manually trigger cleanup of stuck tasks
+app.post("/cleanup", (req, res) => {
+  const { timeoutMinutes } = req.body;
+  const cleanedIds = cleanupStuckTasks(timeoutMinutes || 10);
+  cleanedIds.forEach((id) => removeFromQueueFile(id));
+  res.json({
+    message: `Cleanup completed. ${cleanedIds.length} tasks were marked as failed.`,
+    cleanedCount: cleanedIds.length,
+    cleanedIds,
+  });
+});
+
+// Periodically cleanup stuck tasks every 5 minutes
+setInterval(() => {
+  const cleanedIds = cleanupStuckTasks(10);
+  if (cleanedIds.length > 0) {
+    cleanedIds.forEach((id) => removeFromQueueFile(id));
+    console.log(`[Cleanup] Marked ${cleanedIds.length} stuck tasks as failed.`);
+  }
+}, 5 * 60 * 1000);
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
