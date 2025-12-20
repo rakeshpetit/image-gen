@@ -1,0 +1,18 @@
+meta {
+  name: Analyze Image
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/analyze-image
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "prompt": "Describe this image in detail",
+    "image_url": "https://raw.githubusercontent.com/QwenLM/Qwen-VL/master/assets/demo.jpeg"
+  }
+}

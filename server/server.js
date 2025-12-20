@@ -1,4 +1,6 @@
 const express = require("express");
+const fs = require("fs");
+const path = require("path");
 const { v4: uuidv4 } = require("uuid");
 const { createTask, getTask, getAllTasks, cleanupStuckTasks } = require("./db");
 const { addTaskToQueue, removeFromQueueFile } = require("./queue");
@@ -119,6 +121,53 @@ app.post("/generate-video", (req, res) => {
     id,
     status: "pending",
     message: "Video generation task queued successfully",
+  });
+});
+
+// Endpoint to analyze an image using Qwen3-VL
+app.post("/analyze-image", (req, res) => {
+  const { prompt, image, image_url } = req.body;
+
+  if (!image && !image_url) {
+    return res.status(400).json({
+      error: "Image (base64 or filename) or image_url is required",
+    });
+  }
+
+  const id = uuidv4();
+  let finalImage = image;
+
+  // If image is base64, save it to inputs/
+  if (image && image.startsWith("data:image")) {
+    try {
+      const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
+      const buffer = Buffer.from(base64Data, "base64");
+      const extension = image.split(";")[0].split("/")[1] || "png";
+      const filename = `input_${id}.${extension}`;
+      const filepath = path.join(__dirname, "inputs", filename);
+      fs.writeFileSync(filepath, buffer);
+      finalImage = filename;
+    } catch (err) {
+      return res.status(400).json({ error: "Invalid base64 image data" });
+    }
+  }
+
+  // 1. Save to DB
+  createTask(id, prompt || "Describe this image");
+
+  // 2. Add to Queue
+  addTaskToQueue(id, {
+    prompt: prompt || "Describe this image",
+    image: finalImage,
+    image_url: image_url,
+    type: "analyze-image",
+  });
+
+  // 3. Return immediate response
+  res.status(202).json({
+    id,
+    status: "pending",
+    message: "Analyze image task queued successfully",
   });
 });
 

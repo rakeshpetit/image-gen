@@ -129,7 +129,37 @@ The server will be running at `http://localhost:3000`.
 }
 ```
 
-### 4. Check Task Status
+### 4. Analyze Image (Qwen3-VL)
+
+**Endpoint**: `POST /analyze-image`
+
+**Request Body**:
+
+```json
+{
+  "prompt": "Describe this image in detail",
+  "image": "data:image/png;base64,...",
+  "image_url": "input_image.png"
+}
+```
+
+*Either `image` or `image_url` is required. Both can accept:*
+
+- *A base64 data URL (e.g., `data:image/png;base64,...`)*
+- *A filename of an image already in the `inputs/` directory (e.g., `input_image.png`)*
+- *A public HTTP/HTTPS URL (e.g., `https://example.com/image.png`)*
+
+**Response**:
+
+```json
+{
+  "id": "uuid-v4-string",
+  "status": "pending",
+  "message": "Analyze image task queued successfully"
+}
+```
+
+### 5. Get Task Status
 
 **Endpoint**: `GET /status/:id`
 
@@ -147,7 +177,9 @@ The server will be running at `http://localhost:3000`.
 }
 ```
 
-### 5. Get All Tasks / Filter by Status
+*Note: For `analyze-image` tasks, the `file_path` will point to a `.txt` file containing the model's description.*
+
+### 6. Get All Tasks / Filter by Status
 
 **Endpoint**: `GET /status`
 

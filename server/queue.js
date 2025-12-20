@@ -34,7 +34,12 @@ function removeFromQueueFile(id) {
 
 async function processTask(task) {
   const { id, options } = task;
-  const extension = options.type === "video" ? "mp4" : "png";
+  const extension =
+    options.type === "video"
+      ? "mp4"
+      : options.type === "analyze-image"
+      ? "txt"
+      : "png";
   const outputPath = path.join(__dirname, "outputs", `${id}.${extension}`);
 
   try {
@@ -81,6 +86,49 @@ async function processTask(task) {
         resolution: options.resolution,
         frames: options.frames,
       };
+    } else if (options.type === "analyze-image") {
+      apiUrl = "https://llm.chutes.ai/v1/chat/completions";
+      let imageUrl = options.image_url || options.image;
+
+      // If it's a filename (doesn't start with http or data:), load it from inputs/
+      if (
+        imageUrl &&
+        !imageUrl.startsWith("http") &&
+        !imageUrl.startsWith("data:")
+      ) {
+        const imagePath = path.join(__dirname, "inputs", imageUrl);
+        if (fs.existsSync(imagePath)) {
+          const imageBuffer = fs.readFileSync(imagePath);
+          const base64Image = imageBuffer.toString("base64");
+          const ext = path.extname(imageUrl).toLowerCase().replace(".", "");
+          const mimeType = `image/${ext === "jpg" ? "jpeg" : ext}`;
+          imageUrl = `data:${mimeType};base64,${base64Image}`;
+        } else {
+          throw new Error(`Input image not found: ${imageUrl}`);
+        }
+      }
+
+      if (!imageUrl) {
+        throw new Error("No image source provided for analysis");
+      }
+
+      requestData = {
+        model: "Qwen/Qwen3-VL-235B-A22B-Instruct",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: options.prompt },
+              {
+                type: "image_url",
+                image_url: { url: imageUrl },
+              },
+            ],
+          },
+        ],
+        max_tokens: 1024,
+        temperature: 0.7,
+      };
     }
 
     const controller = new AbortController();
@@ -88,6 +136,7 @@ async function processTask(task) {
       controller.abort();
     }, 10 * 60 * 1000); // 10 minute timeout
 
+    const isStream = options.type !== "analyze-image";
     const response = await axios({
       method: "post",
       url: apiUrl,
@@ -96,27 +145,35 @@ async function processTask(task) {
         "Content-Type": "application/json",
       },
       data: requestData,
-      responseType: "stream",
+      responseType: isStream ? "stream" : "json",
       signal: controller.signal,
     });
 
-    const writer = fs.createWriteStream(outputPath);
-    response.data.pipe(writer);
+    if (isStream) {
+      const writer = fs.createWriteStream(outputPath);
+      response.data.pipe(writer);
 
-    return new Promise((resolve, reject) => {
-      writer.on("finish", () => {
-        clearTimeout(timeoutId);
-        updateTaskStatus(id, "completed", outputPath);
-        removeFromQueueFile(id);
-        resolve();
+      return new Promise((resolve, reject) => {
+        writer.on("finish", () => {
+          clearTimeout(timeoutId);
+          updateTaskStatus(id, "completed", outputPath);
+          removeFromQueueFile(id);
+          resolve();
+        });
+        writer.on("error", (err) => {
+          clearTimeout(timeoutId);
+          updateTaskStatus(id, "failed", null, err.message);
+          removeFromQueueFile(id);
+          reject(err);
+        });
       });
-      writer.on("error", (err) => {
-        clearTimeout(timeoutId);
-        updateTaskStatus(id, "failed", null, err.message);
-        removeFromQueueFile(id);
-        reject(err);
-      });
-    });
+    } else {
+      clearTimeout(timeoutId);
+      const content = response.data.choices[0].message.content;
+      fs.writeFileSync(outputPath, content);
+      updateTaskStatus(id, "completed", outputPath);
+      removeFromQueueFile(id);
+    }
   } catch (error) {
     let errorMessage = error.message;
     if (error.response) {
