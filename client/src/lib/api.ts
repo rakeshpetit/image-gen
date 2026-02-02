@@ -60,3 +60,42 @@ export async function getTaskStatus(taskId: string): Promise<TaskStatus> {
 export function getImageUrl(taskId: string): string {
   return `${API_BASE}/outputs/${taskId}.png`;
 }
+
+export async function getAllTasks(status?: string): Promise<TaskStatus[]> {
+  const url = status
+    ? `${API_BASE}/status?status=${status}`
+    : `${API_BASE}/status`;
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`Failed to get tasks: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export interface CleanupResponse {
+  message: string;
+  cleanedCount: number;
+  cleanedIds: string[];
+}
+
+export async function cleanupTasks(
+  timeoutMinutes?: number,
+): Promise<CleanupResponse> {
+  const response = await fetch(`${API_BASE}/cleanup`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      timeoutMinutes: timeoutMinutes || 10,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to cleanup tasks: ${response.statusText}`);
+  }
+
+  return response.json();
+}
