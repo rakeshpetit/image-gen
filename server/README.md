@@ -70,7 +70,34 @@ The server will be running at `http://localhost:3000`.
 }
 ```
 
-### 2. Queue Image Edit
+### 2. Queue Z-Image Generation (Turbo)
+
+**Endpoint**: `POST /generate-zimage`
+
+**Request Body**:
+
+```json
+{
+  "prompt": "a high quality photo of a sunrise over the mountains",
+  "width": 1024,
+  "height": 1024,
+  "num_inference_steps": 4
+}
+```
+
+*Only `prompt` is required. This endpoint uses the Chutes Z-Image Turbo model for faster generation.*
+
+**Response**:
+
+```json
+{
+  "id": "uuid-v4-string",
+  "status": "pending",
+  "message": "Z-Image task queued successfully"
+}
+```
+
+### 3. Queue Image Edit
 
 **Endpoint**: `POST /edit`
 
@@ -100,7 +127,7 @@ The server will be running at `http://localhost:3000`.
 }
 ```
 
-### 3. Queue Video Generation
+### 4. Queue Video Generation
 
 **Endpoint**: `POST /generate-video`
 
@@ -129,7 +156,7 @@ The server will be running at `http://localhost:3000`.
 }
 ```
 
-### 4. Analyze Image (Qwen3-VL)
+### 5. Analyze Image (Qwen3-VL)
 
 **Endpoint**: `POST /analyze-image`
 
@@ -159,7 +186,33 @@ The server will be running at `http://localhost:3000`.
 }
 ```
 
-### 5. Get Task Status
+### 6. Text-to-Voice (Kokoro)
+
+**Endpoint**: `POST /speak`
+
+**Request Body**:
+
+```json
+{
+  "text": "Hello world",
+  "voice": "af_heart",
+  "speed": 1.0
+}
+```
+
+*`text` is required. `voice` defaults to `af_heart`. `speed` defaults to `1.0` (range: 0.1 to 3.0).*
+
+**Response**:
+
+```json
+{
+  "id": "uuid-v4-string",
+  "status": "pending",
+  "message": "Speak task queued successfully"
+}
+```
+
+### 7. Get Task Status
 
 **Endpoint**: `GET /status/:id`
 
@@ -177,9 +230,9 @@ The server will be running at `http://localhost:3000`.
 }
 ```
 
-*Note: For `analyze-image` tasks, the `file_path` will point to a `.txt` file containing the model's description.*
+*Note: For `analyze-image` tasks, the `file_path` will point to a `.txt` file. For `speak` tasks, it will point to a `.wav` file.*
 
-### 6. Get All Tasks / Filter by Status
+### 8. Get All Tasks / Filter by Status
 
 **Endpoint**: `GET /status`
 
@@ -225,6 +278,14 @@ A Bruno API collection is provided in the `bruno/` directory at the root of the 
 curl -X POST http://localhost:3000/generate \
   -H "Content-Type: application/json" \
   -d '{"prompt": "A futuristic coffee machine"}'
+```
+
+### Queue a Z-Image task (Turbo)
+
+```bash
+curl -X POST http://localhost:3000/generate-zimage \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "a high quality photo of a sunrise over the mountains"}'
 ```
 
 ### Check status

@@ -39,6 +39,8 @@ async function processTask(task) {
       ? "mp4"
       : options.type === "analyze-image"
       ? "txt"
+      : options.type === "speak"
+      ? "wav"
       : "png";
   const outputPath = path.join(__dirname, "outputs", `${id}.${extension}`);
 
@@ -48,7 +50,15 @@ async function processTask(task) {
     let apiUrl = "https://image.chutes.ai/generate";
     let requestData = { ...options };
 
-    if (options.type === "edit") {
+    if (options.type === "zimage") {
+      apiUrl = "https://chutes-z-image-turbo.chutes.ai/generate";
+      requestData = {
+        prompt: options.prompt,
+        width: options.width,
+        height: options.height,
+        num_inference_steps: options.num_inference_steps,
+      };
+    } else if (options.type === "edit") {
       apiUrl = "https://chutes-qwen-image-edit-2509.chutes.ai/generate";
       const imageB64s = options.images.map((imageName) => {
         const imagePath = path.join(__dirname, "inputs", imageName);
@@ -128,6 +138,13 @@ async function processTask(task) {
         ],
         max_tokens: 1024,
         temperature: 0.7,
+      };
+    } else if (options.type === "speak") {
+      apiUrl = "https://chutes-kokoro.chutes.ai/speak";
+      requestData = {
+        text: options.text,
+        voice: options.voice,
+        speed: options.speed,
       };
     }
 

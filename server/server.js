@@ -43,6 +43,36 @@ app.post("/generate", (req, res) => {
   });
 });
 
+// Endpoint to trigger z-image generation
+app.post("/generate-zimage", (req, res) => {
+  const { prompt, width, height, num_inference_steps } = req.body;
+
+  if (!prompt) {
+    return res.status(400).json({ error: "Prompt is required" });
+  }
+
+  const id = uuidv4();
+
+  // 1. Save to DB
+  createTask(id, prompt);
+
+  // 2. Add to Queue
+  addTaskToQueue(id, {
+    prompt,
+    width: width || 1024,
+    height: height || 1024,
+    num_inference_steps: num_inference_steps || 4,
+    type: "zimage",
+  });
+
+  // 3. Return immediate response
+  res.status(202).json({
+    id,
+    status: "pending",
+    message: "Z-Image task queued successfully",
+  });
+});
+
 // Endpoint to trigger image editing
 app.post("/edit", (req, res) => {
   const {
@@ -168,6 +198,35 @@ app.post("/analyze-image", (req, res) => {
     id,
     status: "pending",
     message: "Analyze image task queued successfully",
+  });
+});
+
+// Endpoint to trigger text-to-voice generation using Kokoro
+app.post("/speak", (req, res) => {
+  const { text, voice, speed } = req.body;
+
+  if (!text) {
+    return res.status(400).json({ error: "Text is required" });
+  }
+
+  const id = uuidv4();
+
+  // 1. Save to DB
+  createTask(id, text);
+
+  // 2. Add to Queue
+  addTaskToQueue(id, {
+    text,
+    voice: voice || "af_heart",
+    speed: speed || 1.0,
+    type: "speak",
+  });
+
+  // 3. Return immediate response
+  res.status(202).json({
+    id,
+    status: "pending",
+    message: "Speak task queued successfully",
   });
 });
 

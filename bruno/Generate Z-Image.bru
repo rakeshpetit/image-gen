@@ -1,0 +1,20 @@
+meta {
+  name: Generate Z-Image
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/generate-zimage
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "prompt": "a high quality photo of a sunrise over the mountains. 8K, Cinematic and high definition photo",
+    "width": 1024,
+    "height": 1024,
+    "num_inference_steps": 9
+  }
+}

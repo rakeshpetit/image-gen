@@ -1,0 +1,19 @@
+meta {
+  name: Generate Voice
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/speak
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "text": "Good afternoon. I hope you are having a great day!",
+    "voice": "am_adam",
+    "speed": 1.0
+  }
+}
