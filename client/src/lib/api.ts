@@ -47,6 +47,24 @@ export async function generateImage(
   return response.json();
 }
 
+export async function generateZImage(
+  request: GenerateImageRequest,
+): Promise<GenerateResponse> {
+  const response = await fetch(`${API_BASE}/generate-zimage`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to generate Z-Image: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
 export async function getTaskStatus(taskId: string): Promise<TaskStatus> {
   const response = await fetch(`${API_BASE}/status/${taskId}`);
 

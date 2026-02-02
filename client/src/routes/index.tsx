@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { generateImage } from "../lib/api";
+import { generateImage, generateZImage } from "../lib/api";
 
 export const Route = createFileRoute("/")({
   component: IndexComponent,
@@ -10,10 +10,19 @@ export const Route = createFileRoute("/")({
 function IndexComponent() {
   const navigate = useNavigate();
   const [prompt, setPrompt] = useState("");
+  const [model, setModel] = useState<"qwen" | "zimage">("qwen");
 
   // Generate image mutation
   const generateMutation = useMutation({
-    mutationFn: generateImage,
+    mutationFn: (vars: { prompt: string; model: "qwen" | "zimage" }) => {
+      if (vars.model === "zimage") {
+        return generateZImage({ prompt: vars.prompt });
+      }
+      return generateImage({
+        prompt: vars.prompt,
+        model: "Qwen-Image-2512",
+      });
+    },
     onSuccess: (response) => {
       navigate({ to: "/task/$taskId", params: { taskId: response.id } });
     },
@@ -31,7 +40,7 @@ function IndexComponent() {
     }
     generateMutation.mutate({
       prompt: prompt.trim(),
-      model: "Qwen-Image-2512",
+      model: model,
     });
   };
 
@@ -43,6 +52,38 @@ function IndexComponent() {
         </h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Select Model
+            </label>
+            <div className="flex space-x-4 mb-4">
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  className="form-radio h-4 w-4 text-blue-600"
+                  name="model"
+                  value="qwen"
+                  checked={model === "qwen"}
+                  onChange={() => setModel("qwen")}
+                  disabled={generateMutation.isPending}
+                />
+                <span className="ml-2 text-sm text-gray-700">Qwen Image</span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  className="form-radio h-4 w-4 text-blue-600"
+                  name="model"
+                  value="zimage"
+                  checked={model === "zimage"}
+                  onChange={() => setModel("zimage")}
+                  disabled={generateMutation.isPending}
+                />
+                <span className="ml-2 text-sm text-gray-700">
+                  Z-Image (Turbo)
+                </span>
+              </label>
+            </div>
+
             <label
               htmlFor="prompt"
               className="block text-sm font-medium text-gray-700 mb-2"
@@ -64,7 +105,9 @@ function IndexComponent() {
             disabled={generateMutation.isPending || !prompt.trim()}
             className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
           >
-            {generateMutation.isPending ? "Generating..." : "Generate Image"}
+            {generateMutation.isPending
+              ? "Generating..."
+              : `Generate ${model === "qwen" ? "Qwen" : "Z-Image"}`}
           </button>
         </form>
       </div>
