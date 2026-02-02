@@ -25,7 +25,7 @@ function removeFromQueueFile(id) {
       .filter((line) => line.trim() !== id && line.trim() !== "");
     fs.writeFileSync(
       QUEUE_FILE,
-      lines.join("\n") + (lines.length > 0 ? "\n" : "")
+      lines.join("\n") + (lines.length > 0 ? "\n" : ""),
     );
   } catch (err) {
     console.error("Error updating queue file:", err);
@@ -38,10 +38,10 @@ async function processTask(task) {
     options.type === "video"
       ? "mp4"
       : options.type === "analyze-image"
-      ? "txt"
-      : options.type === "speak"
-      ? "wav"
-      : "png";
+        ? "txt"
+        : options.type === "speak"
+          ? "wav"
+          : "png";
   const outputPath = path.join(__dirname, "outputs", `${id}.${extension}`);
 
   try {
@@ -59,7 +59,7 @@ async function processTask(task) {
         num_inference_steps: options.num_inference_steps,
       };
     } else if (options.type === "edit") {
-      apiUrl = "https://chutes-qwen-image-edit-2509.chutes.ai/generate";
+      apiUrl = "https://chutes-qwen-image-edit-2511.chutes.ai/generate";
       const imageB64s = options.images.map((imageName) => {
         const imagePath = path.join(__dirname, "inputs", imageName);
         if (!fs.existsSync(imagePath)) {
@@ -149,9 +149,12 @@ async function processTask(task) {
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      controller.abort();
-    }, 10 * 60 * 1000); // 10 minute timeout
+    const timeoutId = setTimeout(
+      () => {
+        controller.abort();
+      },
+      10 * 60 * 1000,
+    ); // 10 minute timeout
 
     const isStream = options.type !== "analyze-image";
     const response = await axios({

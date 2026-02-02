@@ -31,7 +31,7 @@ function IndexComponent() {
     }
     generateMutation.mutate({
       prompt: prompt.trim(),
-      model: "qwen-image",
+      model: "Qwen-Image-2512",
     });
   };
 
