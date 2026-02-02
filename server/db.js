@@ -10,6 +10,7 @@ db.exec(`
     id TEXT PRIMARY KEY,
     prompt TEXT NOT NULL,
     status TEXT DEFAULT 'pending',
+    options TEXT,
     file_path TEXT,
     error TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -17,9 +18,11 @@ db.exec(`
   )
 `);
 
-function createTask(id, prompt) {
-  const stmt = db.prepare("INSERT INTO tasks (id, prompt) VALUES (?, ?)");
-  stmt.run(id, prompt);
+function createTask(id, prompt, options = null) {
+  const stmt = db.prepare(
+    "INSERT INTO tasks (id, prompt, options) VALUES (?, ?, ?)",
+  );
+  stmt.run(id, prompt, options ? JSON.stringify(options) : null);
 }
 
 function updateTaskStatus(id, status, filePath = null, error = null) {

@@ -142,6 +142,11 @@ function TasksComponent() {
                       {task.id}
                     </span>
                     <StatusBadge status={task.status} />
+                    {task.options && (
+                      <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                        {JSON.parse(task.options).type || "generate"}
+                      </span>
+                    )}
                   </div>
                   <p className="text-sm text-gray-900 break-words">
                     {truncatePrompt(task.prompt)}

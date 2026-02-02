@@ -24,6 +24,13 @@ export const Route = createRootRoute({
                 Generate Image
               </Link>
               <Link
+                to="/edit"
+                className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                activeProps={{ className: "text-blue-800 font-semibold" }}
+              >
+                Edit Image
+              </Link>
+              <Link
                 to="/tasks"
                 className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
                 activeProps={{ className: "text-blue-800 font-semibold" }}

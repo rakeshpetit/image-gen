@@ -16,10 +16,21 @@ export interface GenerateResponse {
   message: string;
 }
 
+export interface EditImageRequest {
+  prompt: string;
+  images: string[];
+  width?: number;
+  height?: number;
+  num_inference_steps?: number;
+  true_cfg_scale?: number;
+  negative_prompt?: string;
+}
+
 export interface TaskStatus {
   id: string;
   prompt: string;
   status: "pending" | "processing" | "completed" | "failed";
+  options?: string; // JSON string
   file_path?: string;
   error?: string;
   created_at: number;
@@ -65,6 +76,42 @@ export async function generateZImage(
   return response.json();
 }
 
+export async function uploadImage(
+  base64Image: string,
+): Promise<{ filename: string }> {
+  const response = await fetch(`${API_BASE}/upload`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ image: base64Image }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to upload image: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export async function editImage(
+  request: EditImageRequest,
+): Promise<GenerateResponse> {
+  const response = await fetch(`${API_BASE}/edit`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to edit image: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
 export async function getTaskStatus(taskId: string): Promise<TaskStatus> {
   const response = await fetch(`${API_BASE}/status/${taskId}`);
 
@@ -75,8 +122,22 @@ export async function getTaskStatus(taskId: string): Promise<TaskStatus> {
   return response.json();
 }
 
-export function getImageUrl(taskId: string): string {
-  return `${API_BASE}/outputs/${taskId}.png`;
+export function getImageUrl(taskId: string, type?: string): string {
+  const ext =
+    type === "video"
+      ? "mp4"
+      : type === "analyze-image"
+        ? "txt"
+        : type === "speak"
+          ? "wav"
+          : "png";
+  return `${API_BASE}/outputs/${taskId}.${ext}`;
+}
+
+export function getInputImageUrl(filename: string): string {
+  if (filename.startsWith("http") || filename.startsWith("data:"))
+    return filename;
+  return `${API_BASE}/inputs/${filename}`;
 }
 
 export async function getAllTasks(status?: string): Promise<TaskStatus[]> {

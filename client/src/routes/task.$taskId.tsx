@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { getTaskStatus, getImageUrl } from "../lib/api";
+import { getTaskStatus, getImageUrl, getInputImageUrl } from "../lib/api";
 
 export const Route = createFileRoute("/task/$taskId")({
   component: TaskComponent,
@@ -54,31 +54,74 @@ function TaskComponent() {
     );
   }
 
+  const options = task.options ? JSON.parse(task.options) : null;
+  const taskType = options?.type || "generate";
+  const resultUrl = getImageUrl(task.id, taskType);
+
   return (
     <div className="space-y-6">
-      {/* Show generated image prominently at the top when completed */}
+      {/* Show input images if this was an edit or video task */}
+      {options && (options.images || options.image) && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-sm font-medium text-gray-500 mb-4">
+            Input Image(s)
+          </h3>
+          <div className="flex flex-wrap gap-4">
+            {options.images
+              ? options.images.map((img: string, i: number) => (
+                  <img
+                    key={i}
+                    src={getInputImageUrl(img)}
+                    alt={`Input ${i + 1}`}
+                    className="h-32 w-auto rounded border border-gray-200"
+                  />
+                ))
+              : options.image && (
+                  <img
+                    src={getInputImageUrl(options.image)}
+                    alt="Input"
+                    className="h-32 w-auto rounded border border-gray-200"
+                  />
+                )}
+          </div>
+        </div>
+      )}
+
+      {/* Result Section */}
       {task.status === "completed" && task.file_path && (
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Generated Image
-            </h3>
+            <h3 className="text-lg font-semibold text-gray-900">Result</h3>
             <StatusBadge status={task.status} />
           </div>
           <div className="flex justify-center bg-gray-50 rounded-lg p-4">
-            <img
-              src={getImageUrl(task.id)}
-              alt={task.prompt}
-              className="max-w-full h-auto rounded-lg shadow-md"
-            />
+            {taskType === "video" ? (
+              <video
+                src={resultUrl}
+                controls
+                className="max-w-full h-auto rounded-lg shadow-md"
+              />
+            ) : taskType === "speak" ? (
+              <audio src={resultUrl} controls className="w-full" />
+            ) : taskType === "analyze-image" ? (
+              <div className="bg-white p-4 rounded border border-gray-200 w-full whitespace-pre-wrap text-sm">
+                <iframe src={resultUrl} className="w-full h-64 border-none" />
+              </div>
+            ) : (
+              <img
+                src={resultUrl}
+                alt={task.prompt}
+                className="max-w-full h-auto rounded-lg shadow-md"
+              />
+            )}
           </div>
           <div className="mt-4 text-center">
             <a
-              href={getImageUrl(task.id)}
-              download={`image-${task.id}.png`}
+              href={resultUrl}
+              download={`${taskType}-${task.id}`}
               className="inline-block bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
             >
-              Download Image
+              Download {taskType.charAt(0).toUpperCase() + taskType.slice(1)}
             </a>
           </div>
         </div>

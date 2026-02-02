@@ -13,11 +13,44 @@ const { addTaskToQueue, removeFromQueueFile } = require("./queue");
 require("dotenv").config();
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 app.use("/outputs", express.static(path.join(__dirname, "outputs")));
+app.use("/inputs", express.static(path.join(__dirname, "inputs")));
+
+// Helper function to save base64 image to inputs directory
+function saveBase64Image(base64String) {
+  if (!base64String || !base64String.startsWith("data:image")) {
+    throw new Error("Invalid base64 image data");
+  }
+
+  const base64Data = base64String.replace(/^data:image\/\w+;base64,/, "");
+  const buffer = Buffer.from(base64Data, "base64");
+  const extension = base64String.split(";")[0].split("/")[1] || "png";
+  const filename = `input_${uuidv4()}.${extension}`;
+  const filepath = path.join(__dirname, "inputs", filename);
+  fs.writeFileSync(filepath, buffer);
+  return filename;
+}
 
 const PORT = process.env.PORT || 3000;
+
+// Endpoint to upload an image
+app.post("/upload", (req, res) => {
+  const { image } = req.body;
+
+  if (!image) {
+    return res.status(400).json({ error: "Image data is required" });
+  }
+
+  try {
+    const filename = saveBase64Image(image);
+    res.json({ filename });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
 
 // Endpoint to trigger image generation
 app.post("/generate", (req, res) => {
@@ -29,19 +62,21 @@ app.post("/generate", (req, res) => {
   }
 
   const id = uuidv4();
-
-  // 1. Save to DB
-  createTask(id, prompt);
-
-  // 2. Add to Queue
-  addTaskToQueue(id, {
+  const options = {
     prompt,
     model: model || "qwen-image",
     guidance_scale: guidance_scale || 7.5,
     width: width || 1024,
     height: height || 1024,
     num_inference_steps: num_inference_steps || 20,
-  });
+    type: "generate",
+  };
+
+  // 1. Save to DB
+  createTask(id, prompt, options);
+
+  // 2. Add to Queue
+  addTaskToQueue(id, options);
 
   // 3. Return immediate response
   res.status(202).json({
@@ -60,18 +95,19 @@ app.post("/generate-zimage", (req, res) => {
   }
 
   const id = uuidv4();
-
-  // 1. Save to DB
-  createTask(id, prompt);
-
-  // 2. Add to Queue
-  addTaskToQueue(id, {
+  const optionsObj = {
     prompt,
     width: width || 1024,
     height: height || 1024,
     num_inference_steps: num_inference_steps || 4,
     type: "zimage",
-  });
+  };
+
+  // 1. Save to DB
+  createTask(id, prompt, optionsObj);
+
+  // 2. Add to Queue
+  addTaskToQueue(id, optionsObj);
 
   // 3. Return immediate response
   res.status(202).json({
@@ -102,12 +138,7 @@ app.post("/edit", (req, res) => {
   }
 
   const id = uuidv4();
-
-  // 1. Save to DB
-  createTask(id, prompt);
-
-  // 2. Add to Queue
-  addTaskToQueue(id, {
+  const optionsObj = {
     prompt,
     images,
     width: width || 1024,
@@ -116,7 +147,13 @@ app.post("/edit", (req, res) => {
     true_cfg_scale: true_cfg_scale || 4,
     negative_prompt: negative_prompt || "",
     type: "edit",
-  });
+  };
+
+  // 1. Save to DB
+  createTask(id, prompt, optionsObj);
+
+  // 2. Add to Queue
+  addTaskToQueue(id, optionsObj);
 
   // 3. Return immediate response
   res.status(202).json({
@@ -139,12 +176,7 @@ app.post("/generate-video", (req, res) => {
   }
 
   const id = uuidv4();
-
-  // 1. Save to DB
-  createTask(id, prompt);
-
-  // 2. Add to Queue
-  addTaskToQueue(id, {
+  const optionsObj = {
     prompt,
     image,
     negative_prompt: negative_prompt || "",
@@ -152,7 +184,13 @@ app.post("/generate-video", (req, res) => {
     resolution: resolution || "480p",
     frames: frames || 81,
     type: "video",
-  });
+  };
+
+  // 1. Save to DB
+  createTask(id, prompt, optionsObj);
+
+  // 2. Add to Queue
+  addTaskToQueue(id, optionsObj);
 
   // 3. Return immediate response
   res.status(202).json({
@@ -178,28 +216,24 @@ app.post("/analyze-image", (req, res) => {
   // If image is base64, save it to inputs/
   if (image && image.startsWith("data:image")) {
     try {
-      const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
-      const buffer = Buffer.from(base64Data, "base64");
-      const extension = image.split(";")[0].split("/")[1] || "png";
-      const filename = `input_${id}.${extension}`;
-      const filepath = path.join(__dirname, "inputs", filename);
-      fs.writeFileSync(filepath, buffer);
-      finalImage = filename;
+      finalImage = saveBase64Image(image);
     } catch (err) {
       return res.status(400).json({ error: "Invalid base64 image data" });
     }
   }
 
-  // 1. Save to DB
-  createTask(id, prompt || "Describe this image");
-
-  // 2. Add to Queue
-  addTaskToQueue(id, {
+  const optionsObj = {
     prompt: prompt || "Describe this image",
     image: finalImage,
     image_url: image_url,
     type: "analyze-image",
-  });
+  };
+
+  // 1. Save to DB
+  createTask(id, prompt || "Describe this image", optionsObj);
+
+  // 2. Add to Queue
+  addTaskToQueue(id, optionsObj);
 
   // 3. Return immediate response
   res.status(202).json({
@@ -218,17 +252,18 @@ app.post("/speak", (req, res) => {
   }
 
   const id = uuidv4();
-
-  // 1. Save to DB
-  createTask(id, text);
-
-  // 2. Add to Queue
-  addTaskToQueue(id, {
+  const optionsObj = {
     text,
     voice: voice || "af_heart",
     speed: speed || 1.0,
     type: "speak",
-  });
+  };
+
+  // 1. Save to DB
+  createTask(id, text, optionsObj);
+
+  // 2. Add to Queue
+  addTaskToQueue(id, optionsObj);
 
   // 3. Return immediate response
   res.status(202).json({
