@@ -39,7 +39,7 @@ function getTask(id) {
 function getAllTasks(status = null) {
   if (status) {
     const stmt = db.prepare(
-      "SELECT * FROM tasks WHERE status = ? ORDER BY created_at DESC"
+      "SELECT * FROM tasks WHERE status = ? ORDER BY created_at DESC",
     );
     return stmt.all(status);
   }
@@ -68,10 +68,16 @@ function cleanupStuckTasks(timeoutMinutes = 10) {
   return ids;
 }
 
+function deleteTask(id) {
+  const stmt = db.prepare("DELETE FROM tasks WHERE id = ?");
+  return stmt.run(id);
+}
+
 module.exports = {
   createTask,
   updateTaskStatus,
   getTask,
   getAllTasks,
   cleanupStuckTasks,
+  deleteTask,
 };

@@ -258,6 +258,18 @@ The server will be running at `http://localhost:3000`.
 ]
 ```
 
+### 8. Delete a task
+
+**Endpoint**: `DELETE /tasks/:id`
+
+**Response**:
+
+```json
+{
+  "message": "Task deleted successfully"
+}
+```
+
 ## Queue Monitoring
 
 The server maintains a `queue.txt` file in the `server/` directory. This file contains the IDs of all tasks currently in the queue (either pending or processing). Once a task is completed or fails, its ID is removed from this file.
@@ -294,6 +306,14 @@ Replace `<ID>` with the ID returned from the previous command.
 
 ```bash
 curl http://localhost:3000/status/<ID>
+```
+
+### Delete a task
+
+Replace `<ID>` with the ID returned from the previous command.
+
+```bash
+curl -X DELETE http://localhost:3000/tasks/<ID>
 ```
 
 ## Directory Structure

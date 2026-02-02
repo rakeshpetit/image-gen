@@ -2,7 +2,13 @@ const express = require("express");
 const fs = require("fs");
 const path = require("path");
 const { v4: uuidv4 } = require("uuid");
-const { createTask, getTask, getAllTasks, cleanupStuckTasks } = require("./db");
+const {
+  createTask,
+  getTask,
+  getAllTasks,
+  cleanupStuckTasks,
+  deleteTask,
+} = require("./db");
 const { addTaskToQueue, removeFromQueueFile } = require("./queue");
 require("dotenv").config();
 
@@ -249,6 +255,35 @@ app.get("/status", (req, res) => {
   const { status } = req.query;
   const tasks = getAllTasks(status);
   res.json(tasks);
+});
+
+// Endpoint to delete a task
+app.delete("/tasks/:id", (req, res) => {
+  const { id } = req.params;
+  const task = getTask(id);
+
+  if (!task) {
+    return res.status(404).json({ error: "Task not found" });
+  }
+
+  // 1. Delete from DB
+  deleteTask(id);
+
+  // 2. Remove from Queue File
+  removeFromQueueFile(id);
+
+  // 3. Delete output file if exists
+  if (task.file_path) {
+    if (fs.existsSync(task.file_path)) {
+      try {
+        fs.unlinkSync(task.file_path);
+      } catch (err) {
+        console.error(`Error deleting file: ${task.file_path}`, err);
+      }
+    }
+  }
+
+  res.json({ message: "Task deleted successfully" });
 });
 
 // Endpoint to manually trigger cleanup of stuck tasks
