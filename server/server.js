@@ -9,6 +9,8 @@ require("dotenv").config();
 const app = express();
 app.use(express.json());
 
+app.use("/outputs", express.static(path.join(__dirname, "outputs")));
+
 const PORT = process.env.PORT || 3000;
 
 // Endpoint to trigger image generation
@@ -262,13 +264,18 @@ app.post("/cleanup", (req, res) => {
 });
 
 // Periodically cleanup stuck tasks every 5 minutes
-setInterval(() => {
-  const cleanedIds = cleanupStuckTasks(10);
-  if (cleanedIds.length > 0) {
-    cleanedIds.forEach((id) => removeFromQueueFile(id));
-    console.log(`[Cleanup] Marked ${cleanedIds.length} stuck tasks as failed.`);
-  }
-}, 5 * 60 * 1000);
+setInterval(
+  () => {
+    const cleanedIds = cleanupStuckTasks(10);
+    if (cleanedIds.length > 0) {
+      cleanedIds.forEach((id) => removeFromQueueFile(id));
+      console.log(
+        `[Cleanup] Marked ${cleanedIds.length} stuck tasks as failed.`,
+      );
+    }
+  },
+  5 * 60 * 1000,
+);
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
