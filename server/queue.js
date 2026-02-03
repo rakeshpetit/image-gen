@@ -1,57 +1,38 @@
+/**
+ * Queue module - handles task processing and queue management
+ * Refactored to use centralized configuration and utility modules
+ */
+
 const { default: PQueue } = require("p-queue");
 const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
 const { updateTaskStatus } = require("./db");
-require("dotenv").config();
+const { api, queue, paths, taskExtensions, defaults } = require("./config");
+const { readImageAsBase64, readImageAsDataUrl } = require("./utils/fileUtils");
+const { addToQueueFile, removeFromQueueFile } = require("./utils/queueFile");
 
-const queue = new PQueue({ concurrency: 10 }); // Adjust concurrency as needed
-const QUEUE_FILE = path.join(__dirname, "queue.txt");
+const queueInstance = new PQueue({ concurrency: queue.concurrency });
 
-// Initialize queue file
-if (!fs.existsSync(QUEUE_FILE)) {
-  fs.writeFileSync(QUEUE_FILE, "");
-}
-
-function addToQueueFile(id) {
-  fs.appendFileSync(QUEUE_FILE, `${id}\n`);
-}
-
-function removeFromQueueFile(id) {
-  try {
-    const data = fs.readFileSync(QUEUE_FILE, "utf8");
-    const lines = data
-      .split("\n")
-      .filter((line) => line.trim() !== id && line.trim() !== "");
-    fs.writeFileSync(
-      QUEUE_FILE,
-      lines.join("\n") + (lines.length > 0 ? "\n" : ""),
-    );
-  } catch (err) {
-    console.error("Error updating queue file:", err);
-  }
-}
-
+/**
+ * Process a task by calling the appropriate API
+ * @param {Object} task - Task object containing id and options
+ * @returns {Promise<void>}
+ */
 async function processTask(task) {
   const { id, options } = task;
-  const extension =
-    options.type === "video"
-      ? "mp4"
-      : options.type === "analyze-image"
-        ? "txt"
-        : options.type === "speak"
-          ? "wav"
-          : "png";
-  const outputPath = path.join(__dirname, "outputs", `${id}.${extension}`);
+  const extension = taskExtensions[options.type] || "png";
+  const outputPath = path.join(__dirname, paths.outputs, `${id}.${extension}`);
 
   try {
     updateTaskStatus(id, "processing");
 
-    let apiUrl = "https://image.chutes.ai/generate";
+    let apiUrl = api.imageGeneration;
     let requestData = { ...options };
 
+    // Build request data based on task type
     if (options.type === "zimage") {
-      apiUrl = "https://chutes-z-image-turbo.chutes.ai/generate";
+      apiUrl = api.zImageGeneration;
       requestData = {
         prompt: options.prompt,
         width: options.width,
@@ -59,15 +40,10 @@ async function processTask(task) {
         num_inference_steps: options.num_inference_steps,
       };
     } else if (options.type === "edit") {
-      apiUrl = "https://chutes-qwen-image-edit-2511.chutes.ai/generate";
-      const imageB64s = options.images.map((imageName) => {
-        const imagePath = path.join(__dirname, "inputs", imageName);
-        if (!fs.existsSync(imagePath)) {
-          throw new Error(`Input image not found: ${imageName}`);
-        }
-        const imageBuffer = fs.readFileSync(imagePath);
-        return imageBuffer.toString("base64");
-      });
+      apiUrl = api.imageEdit;
+      const imageB64s = options.images.map((imageName) =>
+        readImageAsBase64(imageName),
+      );
 
       requestData = {
         prompt: options.prompt,
@@ -80,13 +56,8 @@ async function processTask(task) {
         seed: options.seed || null,
       };
     } else if (options.type === "video") {
-      apiUrl = "https://chutes-wan-2-2-i2v-14b-fast.chutes.ai/generate";
-      const imagePath = path.join(__dirname, "inputs", options.image);
-      if (!fs.existsSync(imagePath)) {
-        throw new Error(`Input image not found: ${options.image}`);
-      }
-      const imageBuffer = fs.readFileSync(imagePath);
-      const imageB64 = imageBuffer.toString("base64");
+      apiUrl = api.videoGeneration;
+      const imageB64 = readImageAsBase64(options.image);
 
       requestData = {
         prompt: options.prompt,
@@ -97,7 +68,7 @@ async function processTask(task) {
         frames: options.frames,
       };
     } else if (options.type === "analyze-image") {
-      apiUrl = "https://llm.chutes.ai/v1/chat/completions";
+      apiUrl = api.analyzeImage;
       let imageUrl = options.image_url || options.image;
 
       // If it's a filename (doesn't start with http or data:), load it from inputs/
@@ -106,16 +77,7 @@ async function processTask(task) {
         !imageUrl.startsWith("http") &&
         !imageUrl.startsWith("data:")
       ) {
-        const imagePath = path.join(__dirname, "inputs", imageUrl);
-        if (fs.existsSync(imagePath)) {
-          const imageBuffer = fs.readFileSync(imagePath);
-          const base64Image = imageBuffer.toString("base64");
-          const ext = path.extname(imageUrl).toLowerCase().replace(".", "");
-          const mimeType = `image/${ext === "jpg" ? "jpeg" : ext}`;
-          imageUrl = `data:${mimeType};base64,${base64Image}`;
-        } else {
-          throw new Error(`Input image not found: ${imageUrl}`);
-        }
+        imageUrl = readImageAsDataUrl(imageUrl);
       }
 
       if (!imageUrl) {
@@ -123,7 +85,7 @@ async function processTask(task) {
       }
 
       requestData = {
-        model: "Qwen/Qwen3-VL-235B-A22B-Instruct",
+        model: defaults.analyzeImage.model,
         messages: [
           {
             role: "user",
@@ -136,11 +98,11 @@ async function processTask(task) {
             ],
           },
         ],
-        max_tokens: 1024,
-        temperature: 0.7,
+        max_tokens: defaults.analyzeImage.max_tokens,
+        temperature: defaults.analyzeImage.temperature,
       };
     } else if (options.type === "speak") {
-      apiUrl = "https://chutes-kokoro.chutes.ai/speak";
+      apiUrl = api.speak;
       requestData = {
         text: options.text,
         voice: options.voice,
@@ -153,15 +115,15 @@ async function processTask(task) {
       () => {
         controller.abort();
       },
-      10 * 60 * 1000,
-    ); // 10 minute timeout
+      queue.timeoutMinutes * 60 * 1000,
+    );
 
     const isStream = options.type !== "analyze-image";
     const response = await axios({
       method: "post",
       url: apiUrl,
       headers: {
-        Authorization: `Bearer ${process.env.CHUTES_API_TOKEN}`,
+        Authorization: `Bearer ${api.token}`,
         "Content-Type": "application/json",
       },
       data: requestData,
@@ -217,9 +179,14 @@ async function processTask(task) {
   }
 }
 
+/**
+ * Add a task to the queue
+ * @param {string} id - Task ID
+ * @param {Object} options - Task options
+ */
 function addTaskToQueue(id, options) {
   addToQueueFile(id);
-  queue.add(() => processTask({ id, options }));
+  queueInstance.add(() => processTask({ id, options }));
 }
 
 module.exports = {

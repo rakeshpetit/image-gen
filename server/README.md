@@ -37,7 +37,7 @@ This is a Node.js proxy server for the Chutes AI image generation API. It uses a
 npm run start
 ```
 
-The server will be running at `http://localhost:3000`.
+The server will be running at `http://0.0.0.0:3000` (listening on all interfaces).
 
 ## API Endpoints
 
